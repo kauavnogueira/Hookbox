@@ -1,6 +1,6 @@
 # 📦 Hookbox
 
-> **A local webhook recorder, inspector, and replay tool built in Go** — single binary, embedded SQLite (zero CGO), automatic HMAC re-signing, and a minimalist real-time Web UI.
+> **Capture, inspect, and replay webhooks locally — without re-triggering real events.** Single Go binary, built-in Web UI, SQLite/JSON storage, and automatic HMAC re-signing.
 
 ![Go](https://img.shields.io/badge/Go-1.27%2B-00ADD8?style=flat-square&logo=go)
 ![Storage](https://img.shields.io/badge/Storage-SQLite%20(WAL)%20%2F%20JSON-0f172a?style=flat-square)
@@ -8,15 +8,15 @@
 
 ---
 
-## ⚡ What is Hookbox & How Does It Work?
+## ⚡ Why Hookbox & How It Helps
 
-**Hookbox** is a local black-box recorder and replay proxy for webhooks (Stripe, GitHub, Mercado Pago, Shopify, WhatsApp, etc.).
+Testing webhooks from services like **Stripe, GitHub, Mercado Pago, Shopify, or WhatsApp** on `localhost` is slow: if your API crashes with a `500` or you change one line of code, you usually have to repeat a test checkout, push a new commit, or trigger the external event all over again.
 
-Instead of repeatedly triggering test checkouts or losing webhook payloads whenever your local backend crashes with a `500` error, Hookbox works in **3 simple steps**:
+**Hookbox solves this by saving incoming webhooks once so you can inspect and replay them locally as many times as you want:**
 
-1. **Capture:** Run `./hookbox listen` to start a local HTTP server (`/webhook/*`) that records every incoming request (HTTP method, path, query params, headers, and raw payload) into a local **SQLite** database or **JSON** file.
-2. **Inspect:** Browse captured requests immediately in the built-in solid-black Web UI (`http://localhost:8080`) or directly in your terminal (`./hookbox show req_01`).
-3. **Replay:** Re-send any recorded webhook to your local API as many times as you need in milliseconds—including automatic **HMAC re-signing** (so Stripe/GitHub timestamp checks never expire), payload overrides, and real-time forwarding.
+1. **Capture once:** Run `./hookbox listen` to receive webhooks at `/webhook/*` and save every request (method, path, query params, headers, and raw body) into a local **SQLite** database or **JSON** file—even while forwarding them live to your app (`--forward`).
+2. **Inspect clearly:** View formatted JSON payloads, headers, and metadata in real time via the built-in Web UI (`http://localhost:8080`) or in your terminal (`./hookbox show req_01`), with one-click `cURL` export.
+3. **Replay instantly:** Re-send any saved webhook to your local API in milliseconds, edit payloads or headers on the fly, and automatically **re-sign HMAC signatures** (`Stripe-Signature`, `X-Hub-Signature-256`, or custom headers) so timestamp checks never expire.
 
 ---
 
@@ -230,39 +230,6 @@ Starts the standalone Web Inspector without the webhook capture route emphasis.
 
 ```bash
 ./hookbox ui --port 8080 --file webhooks.db
-```
-
----
-
-## 🏗️ Project Architecture
-
-```text
-hookbox/
-├── cmd/
-│   └── hookbox/
-│       └── main.go              # CLI entrypoint (listen, list, show, replay, clean, ui)
-├── internal/
-│   ├── model/
-│   │   └── webhook.go           # Webhook struct and header cloning helpers
-│   ├── storage/
-│   │   ├── sqlite_store.go      # SQLite persistence (WAL mode) + NewStore factory
-│   │   ├── json_store.go        # Atomic JSON file persistence
-│   │   └── *_test.go            # Storage unit tests
-│   ├── server/
-│   │   ├── receiver.go          # HTTP server, MaxBytes guard, Forward mode, REST API & SSE
-│   │   └── receiver_test.go     # Server, forward, API, and UI tests
-│   ├── replay/
-│   │   ├── sender.go            # Replay engine, URL resolution, and tracking headers
-│   │   ├── signer.go            # HMAC-SHA256 signing (Stripe / GitHub / Generic)
-│   │   └── *_test.go            # Replay and signing unit tests
-│   └── ui/
-│       ├── ui.go                # Static asset embedding via embed.FS
-│       └── assets/
-│           └── index.html       # Self-contained solid-black Web UI (HTML/CSS/JS)
-├── docs/
-│   └── demo.jpg                 # Web UI demonstration screenshot
-├── go.mod
-└── README.md
 ```
 
 ---
