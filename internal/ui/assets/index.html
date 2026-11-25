@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hookbox - Webhook Inspector & Replay</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --card-bg: #0a0a0a;
+      --card-hover: #121212;
+      --card-active: #181818;
+      --border: #222222;
+      --border-focus: #444444;
+      --text: #f0f0f0;
+      --text-muted: #888888;
+      --text-dim: #555555;
+      --accent: #10b981;
+      --accent-dim: rgba(16, 185, 129, 0.15);
+      --badge-post: #10b981;
+      --badge-get: #3b82f6;
+      --badge-put: #f59e0b;
+      --badge-delete: #ef4444;
+      --badge-patch: #8b5cf6;
+      --code-bg: #050505;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* HEADER */
+    header {
+      background-color: var(--bg);
+      border-bottom: 1px solid var(--border);
+      height: 56px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+    }
+
+    .brand h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-version {
+      font-size: 11px;
+      background: #181818;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-weight: normal;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .btn {
+      background-color: #141414;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      font-family: var(--font-sans);
+    }
+
+    .btn:hover {
+      background-color: #222222;
+      border-color: #444444;
+    }
+
+    .btn-danger:hover {
+      background-color: rgba(239, 68, 68, 0.2);
+      border-color: var(--badge-delete);
+      color: #fca5a5;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background-color: #059669;
+      border-color: #059669;
+      color: #fff;
+    }
+
+    /* MAIN CONTAINER */
+    .app-main {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 56px);
+      overflow: hidden;
+    }
+
+    /* LEFT SIDEBAR (LIST) */
+    .sidebar {
+      width: 380px;
+      background-color: var(--bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-controls {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .search-input {
+      width: 100%;
+      background-color: #0c0c0c;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 10px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      font-family: var(--font-mono);
+    }
+
+    .search-input:focus {
+      border-color: var(--border-focus);
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+    }
+
+    .pill {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+
+    .pill.active, .pill:hover {
+      background: #181818;
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .webhook-list {
+      flex: 1;
+      overflow-y: auto;
+      list-style: none;
+    }
+
+    .webhook-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #141414;
+      cursor: pointer;
+      transition: background 0.1s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .webhook-item:hover {
+      background-color: var(--card-hover);
+    }
+
+    .webhook-item.active {
+      background-color: var(--card-active);
+      border-left: 3px solid var(--accent);
+    }
+
+    .item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .method-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      letter-spacing: 0.5px;
+    }
+
+    .method-POST { background: rgba(16, 185, 129, 0.15); color: var(--badge-post); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .method-GET { background: rgba(59, 130, 246, 0.15); color: var(--badge-get); border: 1px solid rgba(59, 130, 246, 0.3); }
+    .method-PUT { background: rgba(245, 158, 11, 0.15); color: var(--badge-put); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .method-DELETE { background: rgba(239, 68, 68, 0.15); color: var(--badge-delete); border: 1px solid rgba(239, 68, 68, 0.3); }
+    .method-PATCH { background: rgba(139, 92, 246, 0.15); color: var(--badge-patch); border: 1px solid rgba(139, 92, 246, 0.3); }
+
+    .item-id {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .item-path {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .item-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    /* EMPTY STATE */
+    .empty-state {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* RIGHT CONTENT (INSPECTOR) */
+    .inspector {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg);
+      overflow-y: auto;
+    }
+
+    .inspector-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      background-color: var(--card-bg);
+    }
+
+    .request-title {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .request-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .request-path {
+      font-family: var(--font-mono);
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .request-submeta {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 14px;
+    }
+
+    .inspector-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* SECTIONS */
+    .section-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background-color: var(--bg);
+      padding: 0 24px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: var(--font-sans);
+    }
+
+    .tab-btn.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-content {
+      padding: 24px;
+      flex: 1;
+    }
+
+    .code-box {
+      background-color: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .headers-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .headers-table th, .headers-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .headers-table th {
+      color: var(--text-muted);
+      font-weight: 600;
+      width: 30%;
+    }
+
+    .headers-table td {
+      color: var(--text);
+    }
+
+    /* REPLAY MODAL */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      visibility: hidden;
+      opacity: 0;
+      transition: all 0.2s ease;
+    }
+
+    .modal-overlay.open {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .modal-card {
+      background: #0d0d0d;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 520px;
+      max-width: 90vw;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9);
+    }
+
+    .modal-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .form-control {
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .form-control:focus {
+      border-color: var(--accent);
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #141414;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.8);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.25s ease;
+      z-index: 200;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <a href="#" class="brand">
+      <!-- Minimalist Solid Logo (Box + Webhook Loop) -->
+      <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 2L4 8L16 14L28 8L16 2Z" fill="#10b981" fill-opacity="0.2" stroke="#10b981" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M4 8V22L16 28V14L4 8Z" fill="#0d0d0d" stroke="#10b981" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M28 8V22L16 28V14L28 8Z" fill="#050505" stroke="#10b981" stroke-width="2" stroke-linejoin="round"/>
+        <!-- Arrow Hook In Center -->
+        <path d="M12 18L16 21L20 18" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M16 11V21" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <h1>HOOKBOX <span class="badge-version">v1.2.0</span></h1>
+    </a>
+
+    <div class="header-actions">
+      <button class="btn btn-danger" onclick="clearAllWebhooks()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        Limpar Tudo
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <div class="app-main">
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-controls">
+        <input type="text" id="searchInput" class="search-input" placeholder="Buscar por ID, caminho, corpo..." oninput="filterWebhooks()">
+        <div class="filter-pills">
+          <button class="pill active" onclick="setMethodFilter('')">ALL</button>
+          <button class="pill" onclick="setMethodFilter('POST')">POST</button>
+          <button class="pill" onclick="setMethodFilter('GET')">GET</button>
+          <button class="pill" onclick="setMethodFilter('PUT')">PUT</button>
+          <button class="pill" onclick="setMethodFilter('DELETE')">DELETE</button>
+        </div>
+      </div>
+
+      <ul class="webhook-list" id="webhookList">
+        <!-- Rendered by JS -->
+      </ul>
+    </aside>
+
+    <!-- RIGHT INSPECTOR -->
+    <main class="inspector" id="inspector">
+      <div class="empty-state" style="margin: auto;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        <p>Aguardando webhooks em <code>/webhook/*</code>...</p>
+        <span style="font-size: 11px; color: var(--text-dim);">Envie requisições HTTP para este endereço para inspecioná-las aqui em tempo real.</span>
+      </div>
+    </main>
+  </div>
+
+  <!-- REPLAY MODAL -->
+  <div class="modal-overlay" id="replayModal">
+    <div class="modal-card">
+      <h3>🔁 Disparar Replay</h3>
+      <div class="form-group">
+        <label>URL de Destino</label>
+        <input type="url" id="replayTarget" class="form-control" placeholder="http://localhost:3000/api/webhooks">
+      </div>
+      <div class="form-group">
+        <label>Chave Stripe (Opcional - recalcula Stripe-Signature)</label>
+        <input type="text" id="replayStripeSecret" class="form-control" placeholder="whsec_...">
+      </div>
+      <div class="form-group">
+        <label>Chave GitHub (Opcional - recalcula X-Hub-Signature-256)</label>
+        <input type="text" id="replayGithubSecret" class="form-control" placeholder="github_secret_...">
+      </div>
+      <label class="checkbox-group">
+        <input type="checkbox" id="replayPreservePath"> Preservar caminho original
+      </label>
+      <label class="checkbox-group">
+        <input type="checkbox" id="replayPreserveQuery"> Preservar query string original
+      </label>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeReplayModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="executeReplay()">Disparar Replay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let webhooks = [];
+    let selectedId = null;
+    let currentMethodFilter = '';
+
+    // Load webhooks initially
+    async function loadWebhooks() {
+      try {
+        const res = await fetch('/api/webhooks');
+        if (res.ok) {
+          webhooks = await res.json();
+          renderList();
+          if (webhooks.length > 0 && !selectedId) {
+            selectWebhook(webhooks[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading webhooks:', err);
+      }
+    }
+
+    // Connect SSE for Real-time Webhooks
+    function connectSSE() {
+      const sse = new EventSource('/api/events');
+      sse.onmessage = (event) => {
+        try {
+          const newWebhook = JSON.parse(event.data);
+          // Check if already in list
+          if (!webhooks.some(w => w.id === newWebhook.id)) {
+            webhooks.unshift(newWebhook);
+            renderList();
+            showToast(`Novo webhook recebido: [${newWebhook.id}] ${newWebhook.method} ${newWebhook.path}`);
+            if (!selectedId) {
+              selectWebhook(newWebhook.id);
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+      sse.onerror = () => {
+        setTimeout(connectSSE, 3000);
+      };
+    }
+
+    function setMethodFilter(method) {
+      currentMethodFilter = method;
+      document.querySelectorAll('.filter-pills .pill').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent === (method || 'ALL'));
+      });
+      renderList();
+    }
+
+    function filterWebhooks() {
+      renderList();
+    }
+
+    function renderList() {
+      const listEl = document.getElementById('webhookList');
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+
+      const filtered = webhooks.filter(w => {
+        if (currentMethodFilter && w.method.toUpperCase() !== currentMethodFilter) return false;
+        if (query) {
+          const matchId = w.id.toLowerCase().includes(query);
+          const matchPath = w.path.toLowerCase().includes(query);
+          const matchBody = (w.body || '').toLowerCase().includes(query);
+          if (!matchId && !matchPath && !matchBody) return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `
+          <div class="empty-state">
+            <p>Nenhum webhook encontrado.</p>
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = filtered.map(w => {
+        const activeClass = w.id === selectedId ? 'active' : '';
+        const timeStr = new Date(w.timestamp).toLocaleTimeString();
+        return `
+          <li class="webhook-item ${activeClass}" onclick="selectWebhook('${escapeHtml(w.id)}')">
+            <div class="item-top">
+              <span class="method-badge method-${escapeHtml(w.method)}">${escapeHtml(w.method)}</span>
+              <span class="item-id">${escapeHtml(w.id)}</span>
+            </div>
+            <div class="item-path" title="${escapeHtml(w.path)}">${escapeHtml(w.path)}</div>
+            <div class="item-meta">
+              <span>${timeStr}</span>
+              <span>${w.body_bytes} B</span>
+            </div>
+          </li>
+        `;
+      }).join('');
+    }
+
+    function selectWebhook(id) {
+      selectedId = id;
+      renderList();
+      const item = webhooks.find(w => w.id === id);
+      if (!item) return;
+
+      renderInspector(item);
+    }
+
+    function renderInspector(item) {
+      const inspector = document.getElementById('inspector');
+      const timeStr = new Date(item.timestamp).toLocaleString();
+      
+      let formattedBody = item.body || '';
+      try {
+        if (formattedBody) {
+          formattedBody = JSON.stringify(JSON.parse(formattedBody), null, 2);
+        }
+      } catch (e) {}
+
+      const headersRows = Object.entries(item.headers || {}).map(([k, values]) => {
+        return `<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(values.join(', '))}</td></tr>`;
+      }).join('');
+
+      inspector.innerHTML = `
+        <div class="inspector-header">
+          <div class="request-title">
+            <div class="request-title-row">
+              <span class="method-badge method-${escapeHtml(item.method)}">${escapeHtml(item.method)}</span>
+              <span class="request-path">${escapeHtml(item.path)}</span>
+            </div>
+            <div class="request-submeta">
+              <span>ID: <strong>${escapeHtml(item.id)}</strong></span>
+              <span>Recebido em: ${escapeHtml(timeStr)}</span>
+              <span>Tamanho: ${Number(item.body_bytes) || 0} bytes</span>
+              ${item.remote_addr ? `<span>IP: ${escapeHtml(item.remote_addr)}</span>` : ''}
+            </div>
+          </div>
+          <div class="inspector-actions">
+            <button class="btn" onclick="copyCurl('${escapeHtml(item.id)}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+              Copiar cURL
+            </button>
+            <button class="btn btn-primary" onclick="openReplayModal('${escapeHtml(item.id)}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Replay
+            </button>
+          </div>
+        </div>
+
+        <div class="section-tabs">
+          <button class="tab-btn active" onclick="switchTab('payloadTab')">Payload</button>
+          <button class="tab-btn" onclick="switchTab('headersTab')">Headers (${Object.keys(item.headers || {}).length})</button>
+          <button class="tab-btn" onclick="switchTab('metaTab')">Query & Metadados</button>
+        </div>
+
+        <div class="tab-content" id="payloadTab">
+          <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+            <span style="font-size:12px; color:var(--text-muted);">Corpo bruto da requisição:</span>
+            <button class="btn" style="padding: 2px 8px; font-size: 11px;" onclick="copyText(decodeURIComponent('${encodeURIComponent(item.body || '')}'))">Copiar Payload</button>
+          </div>
+          <pre class="code-box"><code>${escapeHtml(formattedBody || '(Corpo vazio)')}</code></pre>
+        </div>
+
+        <div class="tab-content" id="headersTab" style="display:none;">
+          <table class="headers-table">
+            <thead>
+              <tr><th>Cabeçalho</th><th>Valor</th></tr>
+            </thead>
+            <tbody>
+              ${headersRows || '<tr><td colspan="2">Nenhum cabeçalho salvo</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="tab-content" id="metaTab" style="display:none;">
+          <table class="headers-table">
+            <tbody>
+              <tr><th>ID do Webhook</th><td>${escapeHtml(item.id)}</td></tr>
+              <tr><th>Método HTTP</th><td>${escapeHtml(item.method)}</td></tr>
+              <tr><th>Caminho (Path)</th><td>${escapeHtml(item.path)}</td></tr>
+              <tr><th>Query String</th><td>${escapeHtml(item.query || '-')}</td></tr>
+              <tr><th>Host</th><td>${escapeHtml(item.host || '-')}</td></tr>
+              <tr><th>IP de Origem</th><td>${escapeHtml(item.remote_addr || '-')}</td></tr>
+              <tr><th>Data & Hora</th><td>${new Date(item.timestamp).toISOString()}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(tabId).style.display = 'block';
+      event.target.classList.add('active');
+    }
+
+    function copyCurl(id) {
+      const item = webhooks.find(w => w.id === id);
+      if (!item) return;
+
+      let cmd = `curl -X ${item.method} "http://localhost:3000${item.path}"`;
+      for (const [k, values] of Object.entries(item.headers || {})) {
+        if (k.toLowerCase() === 'host') continue;
+        cmd += ` \\\n  -H "${k}: ${values.join(', ')}"`;
+      }
+      if (item.body) {
+        cmd += ` \\\n  -d '${item.body.replace(/'/g, "'\\''")}'`;
+      }
+
+      copyText(cmd);
+      showToast('Comando cURL copiado para a área de transferência!');
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text);
+      showToast('Copiado com sucesso!');
+    }
+
+    function openReplayModal(id) {
+      document.getElementById('replayModal').classList.add('open');
+      document.getElementById('replayTarget').focus();
+    }
+
+    function closeReplayModal() {
+      document.getElementById('replayModal').classList.remove('open');
+    }
+
+    async function executeReplay() {
+      const target = document.getElementById('replayTarget').value.trim();
+      if (!target) {
+        alert('Informe a URL de destino.');
+        return;
+      }
+
+      const body = {
+        id: selectedId,
+        to: target,
+        stripe_secret: document.getElementById('replayStripeSecret').value.trim(),
+        github_secret: document.getElementById('replayGithubSecret').value.trim(),
+        preserve_path: document.getElementById('replayPreservePath').checked,
+        preserve_query: document.getElementById('replayPreserveQuery').checked,
+      };
+
+      try {
+        const res = await fetch('/api/replay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+        closeReplayModal();
+
+        if (res.ok) {
+          showToast(`✅ Replay enviado com sucesso! Status: ${data.status_text} (${data.duration_ms}ms)`);
+        } else {
+          showToast(`❌ Erro no Replay: ${data.error || 'Falha na requisição'}`);
+        }
+      } catch (e) {
+        showToast(`❌ Erro ao disparar replay: ${e.message}`);
+      }
+    }
+
+    async function clearAllWebhooks() {
+      if (!confirm('Deseja realmente limpar todo o histórico de webhooks?')) return;
+      try {
+        const res = await fetch('/api/webhooks', { method: 'DELETE' });
+        if (res.ok) {
+          webhooks = [];
+          selectedId = null;
+          renderList();
+          document.getElementById('inspector').innerHTML = `
+            <div class="empty-state" style="margin: auto;">
+              <p>Histórico limpo. Aguardando novos webhooks...</p>
+            </div>`;
+          showToast('Histórico limpo com sucesso!');
+        }
+      } catch (e) {
+        showToast('Erro ao limpar histórico');
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Init
+    loadWebhooks();
+    connectSSE();
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Compiled binaries
+/hookbox
+*.exe
+*.test
+*.out
+
+# Local recorded webhook storage
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+webhooks.json
+*.tmp.*
+
+# Environment / local IDE files
+.env
+.env.*
+.DS_Store
